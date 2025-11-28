@@ -1,0 +1,61 @@
+import pandas as pd
+
+df = pd.read_csv("./stress_project/student_lifestyle_dataset.csv")
+df.head()
+df.shape
+
+df['Stress_Level_Num'] = df['Stress_Level'].map({
+    'Low': 1,
+    'Moderate': 2,
+    'High': 3
+})
+
+#check
+df[['Stress_Level', 'Stress_Level_Num']].head()
+import statsmodels.api as sm
+
+X = df[['Sleep_Hours_Per_Day', 'Study_Hours_Per_Day', 'Physical_Activity_Hours_Per_Day', 'Extracurricular_Hours_Per_Day', 'Social_Hours_Per_Day']]
+y = df['Stress_Level_Num']
+
+model = sm.OLS(y, X).fit()
+print(model.summary())
+
+#Here we are shown the results for the t-tests, p-values, R squared, and confidence intervals
+
+#Now we check for collinearity using VIF
+
+from statsmodels.stats.outliers_influence import variance_inflation_factor
+
+vif_data = pd.DataFrame()
+vif_data["Feature"] = X.columns
+vif_data["VIF"] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+vif_data
+
+# VIF > 5 = MODERATE. IF VIF > 10, SERIOUS
+# SLEEP -> HIGH
+# STUDY -> HIGH
+# PHYS, EXT, SOC, -> acpt.
+#SLEEP AND STUDY ARE STRONGLY RELATED
+
+#MUST USE TWO OLS
+import statsmodels.api as sm
+X_full = df[['Sleep_Hours_Per_Day',
+             'Study_Hours_Per_Day',
+             'Physical_Activity_Hours_Per_Day',
+             'Extracurricular_Hours_Per_Day',
+             'Social_Hours_Per_Day']]
+X_full = sm.add_constant(X_full)
+full = sm.OLS(y, X_full).fit()
+
+X_reduced = df[['Sleep_Hours_Per_Day','Study_Hours_Per_Day']]
+X_reduced = sm.add_constant(X_reduced)
+reduced = sm.OLS(y, X_reduced).fit()
+
+from statsmodels.stats.anova import anova_lm
+anova_lm(reduced, full)
+
+# SSR = 372.7586
+# RM SSR 372.9720, DIFF = 0.2133
+# FSTAT = 0.5707
+# PVAL = 0.5652
+# Therefore, exercise, extracurriculars, and social hours do NOT improve prediction, indicating they are NOT statistically significant.
